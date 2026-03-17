@@ -1,259 +1,142 @@
-# LogStorageAPI
+# log-observability-api
 
-A lightweight FastAPI service that exposes Docker container logs and runtime metrics collected by an external agent. It provides a paginated REST API, a CSV export endpoint, and a built-in web dashboard.
+## Project Overview
 
----
+`log-observability-api` is the read and presentation service in the Log Observability Platform. It exposes REST endpoints, CSV export, and a built-in web UI for logs and container metrics that have already been collected into PostgreSQL.
+
+This repository is intentionally focused on the consumer side of the platform: query, filter, aggregate, and visualize the shared operational data set.
+
+## Role in Platform
+
+Platform flow:
+
+```text
+Docker Host -> docker-log-poller -> PostgreSQL -> log-observability-api -> Browser / API Client
+```
+
+- This repo owns read/query APIs, dashboard pages, CSV export, and health checks.
+- The companion poller repo owns Docker access, polling, normalization, and database writes.
+- Both repos stay independent, but they share platform naming, section structure, and database terminology.
+
+## Key Features
+
+- FastAPI endpoints for logs, server inventory, container status, and time-series metrics
+- CSV export for filtered log searches
+- Built-in web UI for dashboard, log browsing, and per-container status views
+- Query window and pagination limits to protect the database
+- Startup health validation against PostgreSQL
+- Structured application logging with slow-query warnings
 
 ## Architecture
 
-This service is the **storage and retrieval layer** in a broader container-monitoring pipeline. An external log-collection agent (separate repository) reads logs and metrics from Docker hosts and writes them to PostgreSQL. LogStorageAPI sits in front of that database.
-
-```
-Docker Hosts
-    │
-    │  log collection agent (separate repo)
-    ▼
-PostgreSQL Database
-    ├── container_logs
-    └── container_status
-              │
-              ▼
-   LogStorageAPI  ◄──── REST API clients / curl / scripts
-              │
-              ▼
-     Web Dashboard (port 8810)
-     ├── /dashboard  — container overview grid
-     ├── /logs       — log viewer with pagination & CSV export
-     └── /status     — per-container metrics and charts
-```
-
----
-
-## Prerequisites
-
-| Tool | Version |
-|---|---|
-| Python | 3.12+ |
-| PostgreSQL | 14+ |
-| Docker + Docker Compose | v2+ |
-
----
-
-## Quick Start
-
-```bash
-# 1. Clone and configure
-git clone https://github.com/yourname/LogStorageAPI.git
-cd LogStorageAPI
-cp .env.example .env
-# Edit .env — fill in your PostgreSQL connection details
-
-# 2. Run with Docker Compose
-docker compose up -d
-
-# 3. Open the dashboard
-open http://localhost:8810
-
-# 4. Browse the interactive API docs
-open http://localhost:8810/docs
+```text
++--------------------+      writes shared tables      +---------------------------+
+| docker-log-poller  | -----------------------------> | PostgreSQL                |
+| collection service |                                | - container_logs          |
++--------------------+                                | - container_status        |
+                                                      +-------------+-------------+
+                                                                    |
+                                                                    | read queries
+                                                                    v
+                                                      +---------------------------+
+                                                      | log-observability-api     |
+                                                      | FastAPI + Web UI          |
+                                                      +-------------+-------------+
+                                                                    |
+                                         +--------------------------+--------------------------+
+                                         |                                                     |
+                                         v                                                     v
+                               Browser dashboard                                      API / CSV clients
 ```
 
-### Run from source (development)
+Data ownership in this repo:
 
-```bash
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+- Query `container_logs` with pagination, time windows, and text filters
+- Query `container_status` for latest status and historical metrics
+- Render dashboard pages on top of the same shared database
+- Surface application and slow-query logs for operational review
 
-# Export env vars or point to a .env file loaded by your shell
-export LOG_DB_HOST=localhost
-export LOG_DB_USER=youruser
-export LOG_DB_PASSWORD=yourpassword
-export LOG_DB_NAME=ologs
+## Directory Structure
 
-uvicorn main:app --host 0.0.0.0 --port 8810 --reload
+```text
+log-observability-api/
+|-- api/
+|   `-- v1/
+|       |-- logs.py         # Log query and CSV export endpoints
+|       `-- containers.py   # Server, container, status, and metrics endpoints
+|-- util/
+|   |-- db.py               # SQLAlchemy engine and DB session helpers
+|   `-- time_utils.py       # Shared query window validation
+|-- web/
+|   |-- routes.py           # HTML page routes
+|   `-- templates/          # Jinja templates and static assets
+|-- tests/                  # Smoke tests and fixtures
+|-- config.py               # Environment validation and database URL builder
+|-- main.py                 # FastAPI app factory and logging setup
+|-- Dockerfile              # Runtime image definition
+|-- docker-compose.yml      # Run a prebuilt image
+|-- .env.example            # Public environment template
+`-- requirements*.txt       # Runtime and dev dependencies
 ```
-
----
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and fill in the values.
-**Never commit `.env` — it is listed in `.gitignore`.**
+Copy `.env.example` to `.env` and fill in the values for the API service.
 
 | Variable | Required | Default | Description |
-|---|---|---|---|
-| `LOG_DB_HOST` | **Yes** | — | PostgreSQL hostname or IP |
+| --- | --- | --- | --- |
+| `LOG_DB_HOST` | Yes | - | PostgreSQL host |
 | `LOG_DB_PORT` | No | `5432` | PostgreSQL port |
-| `LOG_DB_USER` | **Yes** | — | Database username |
-| `LOG_DB_PASSWORD` | **Yes** | — | Database password |
-| `LOG_DB_NAME` | **Yes** | — | Database name |
-| `REGISTRY_URL` | No | `logstorageapi` | Docker image registry path (used by docker-compose) |
-| `IMAGE_TAG` | No | `latest` | Docker image tag |
-| `APP_PORT` | No | `8810` | Host port to expose |
+| `LOG_DB_USER` | Yes | - | PostgreSQL user |
+| `LOG_DB_PASSWORD` | Yes | - | PostgreSQL password |
+| `LOG_DB_NAME` | Yes | - | PostgreSQL database name |
+| `APP_PORT` | No | `8810` | Host port mapped to the FastAPI container |
+| `IMAGE_REPOSITORY` | No | `log-observability-api` | Image name used by `docker-compose.yml` |
+| `IMAGE_TAG` | No | `latest` | Image tag used by `docker-compose.yml` |
 
----
+## Local Development
 
-## API Reference
+1. Create and activate a virtual environment.
+2. Install runtime dependencies with `pip install -r requirements.txt`.
+3. Copy `.env.example` to `.env` and provide PostgreSQL connection values.
+4. Run `uvicorn main:app --host 0.0.0.0 --port 8810 --reload`.
+5. Open `/docs`, `/dashboard`, `/logs`, or `/status`.
 
-Interactive docs are available at `/docs` (Swagger UI) and `/redoc` when the service is running.
-
-### Logs
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/v1/logs` | Paginated log query |
-| `GET` | `/v1/logs/export` | Stream all matching logs as CSV |
-
-**Key query parameters for `/v1/logs`:**
-
-| Parameter | Default | Max | Description |
-|---|---|---|---|
-| `page` | `1` | — | Page number (1-indexed) |
-| `limit` | `100` | `500` | Rows per page |
-| `since` | last 1 hour | — | ISO 8601 start time |
-| `until` | now | — | ISO 8601 end time |
-| `server_id` | — | — | Filter by server |
-| `container_name` | — | — | Filter by container |
-| `level` | — | — | Filter by log level |
-| `stream` | — | — | Filter by stream (`stdout`/`stderr`) |
-| `search` | — | — | Case-insensitive message substring |
-| `with_count` | `true` | — | Set `false` to skip COUNT query |
-
-> Maximum query window: **48 hours**. Export is capped at **100 000 rows**.
-
-### Containers & Metrics
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/v1/servers` | List all servers |
-| `GET` | `/v1/containers` | List all (server, container) pairs |
-| `GET` | `/v1/servers/{server_id}/containers` | Latest status for all containers on a server |
-| `GET` | `/v1/status` | Container status records (filterable) |
-| `GET` | `/v1/containers/{server_id}/{name}/metrics` | Time-series metrics |
-
-**Metric types** (`metric` parameter): `cpu_usage`, `mem_usage`, `mem_usage_bytes`, `net_bytes`
-
-**Limit defaults:**
-
-| Endpoint | Default | Max |
-|---|---|---|
-| `/v1/status` | `50` | `200` |
-| `/v1/…/metrics` | `300` | `1 000` |
-
-### Health
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Liveness probe — returns `{"status": "ok"}` |
-
----
-
-## Database Schema
-
-The service queries two tables populated by the external collection agent.
-
-### `container_logs`
-
-| Column | Type | Description |
-|---|---|---|
-| `id` | `BIGSERIAL` | Primary key |
-| `ts` | `TIMESTAMPTZ` | Log timestamp |
-| `server_id` | `TEXT` | Source server identifier |
-| `container_id` | `TEXT` | Docker container ID |
-| `container_name` | `TEXT` | Docker container name |
-| `image` | `TEXT` | Docker image name |
-| `level` | `TEXT` | Log level (INFO, ERROR, …) |
-| `stream` | `TEXT` | `stdout` or `stderr` |
-| `message` | `TEXT` | Log message body |
-| `extra` | `JSONB` | Additional structured fields |
-| `created_at` | `TIMESTAMPTZ` | Row insertion time |
-
-### `container_status`
-
-| Column | Type | Description |
-|---|---|---|
-| `ts` | `TIMESTAMPTZ` | Snapshot timestamp |
-| `server_id` | `TEXT` | Source server identifier |
-| `container_id` | `TEXT` | Docker container ID |
-| `container_name` | `TEXT` | Docker container name |
-| `image` | `TEXT` | Docker image name |
-| `created_at` | `TIMESTAMPTZ` | Container creation time |
-| `uptime_sec` | `BIGINT` | Uptime in seconds |
-| `status` | `TEXT` | Container status string |
-| `cpu_usage` | `FLOAT` | CPU usage % |
-| `mem_usage` | `FLOAT` | Memory usage % |
-| `mem_usage_bytes` | `BIGINT` | Memory usage in bytes |
-| `net_rx_bytes` | `BIGINT` | Network received bytes |
-| `net_tx_bytes` | `BIGINT` | Network transmitted bytes |
-
----
-
-## CI/CD Pipeline
-
-The Gitea Actions workflow (`.gitea/workflows/ci.yml`) triggers on every push to `master`:
-
-1. **Build** — `docker build` produces two image tags: `latest` and a date stamp (`YYYYmmdd-HHMM`).
-2. **Push** — both tags are pushed to the configured private registry.
-3. **Deploy** — `docker-compose.yml` and `deploy.sh` are copied to the remote server via SCP; `deploy.sh` runs `docker compose pull && docker compose up -d`.
-
-All sensitive values (registry URL, SSH host, user, key, app path) are stored in **Gitea repository secrets** — nothing is hardcoded in the workflow file.
-
----
-
-## Development
-
-### Running tests
+Example:
 
 ```bash
-pip install -r requirements-dev.txt
-pytest tests/ -v
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+uvicorn main:app --host 0.0.0.0 --port 8810 --reload
 ```
 
-The test suite uses a mocked database connection — no live PostgreSQL required.
+## Docker / Deployment
 
-### Project structure
+Run the prebuilt image with Docker Compose:
 
-```
-LogStorageAPI/
-├── main.py                  # App factory, logging config, lifespan
-├── config.py                # Environment-variable validation
-├── requirements.txt         # Runtime dependencies
-├── requirements-dev.txt     # Dev/test dependencies
-├── Dockerfile               # Python 3.12-slim image
-├── docker-compose.yml       # Single-service Compose definition
-├── deploy.sh                # Pull-and-restart deployment script
-├── .env.example             # Template for required env vars
-│
-├── api/v1/
-│   ├── logs.py              # GET /v1/logs, GET /v1/logs/export
-│   └── containers.py        # GET /v1/status, /servers, /containers, /metrics
-│
-├── util/
-│   ├── db.py                # SQLAlchemy engine + session factory
-│   └── time_utils.py        # Shared query-window validation
-│
-├── web/
-│   ├── routes.py            # HTML page routes
-│   └── templates/           # Jinja2 templates + static assets
-│
-└── tests/
-    ├── conftest.py          # Pytest fixtures (mocked DB)
-    └── test_smoke.py        # Smoke tests
+```bash
+docker compose up -d
 ```
 
----
+Operational notes:
 
-## Performance Notes
+- The service does not collect logs itself; it requires the shared PostgreSQL tables to already be populated.
+- The container exposes port `8810` internally and uses `APP_PORT` for host mapping.
+- `deploy.sh` performs a simple `down -> pull -> up -d` deployment cycle for environments that already provide `.env`.
 
-- All queries use **SQL-level `LIMIT`/`OFFSET`** — the application never fetches then slices.
-- The default log query window is **1 hour**; the maximum is 48 hours.
-- The `/v1/logs/export` endpoint streams rows one at a time using a cursor; the session is owned by the generator and closed in a `try/finally` block.
-- Queries exceeding **1 second** are logged as `WARNING` with endpoint, parameters, and duration.
-- The SQLAlchemy engine enforces a **30-second statement timeout** at the PostgreSQL level.
+## Related Repository
 
----
+Companion repo: `docker-log-poller`
 
-## License
+- `docker-log-poller` is deployed on Docker hosts and writes into PostgreSQL.
+- `log-observability-api` reads from that database and serves users or automation.
+- Each repo is documented to stand alone, but together they form the Log Observability Platform.
 
-MIT — see [LICENSE](LICENSE).
+## Future Improvements / Notes
+
+- Logging: startup/shutdown events and slow queries are logged to stdout; route handlers warn when queries exceed one second.
+- Commit convention: use Conventional Commits such as `feat(api): ...`, `fix(api): ...`, `refactor(shared): ...`, and `docs(readme): ...`.
+- Public repo readiness: keep `.env` untracked, document only placeholders in `.env.example`, and publish under MIT.
+- Naming note: publish this repository under the repo name `log-observability-api` even if your local folder name differs.

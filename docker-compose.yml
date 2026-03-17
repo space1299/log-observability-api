@@ -1,9 +1,7 @@
 services:
-  log-api:
-    # Image is built and pushed by the CI pipeline.
-    # For local development, build from source: `docker build -t logstorageapi .`
-    image: ${REGISTRY_URL:-logstorageapi}:${IMAGE_TAG:-latest}
-    container_name: log-api
+  log-observability-api:
+    image: ${IMAGE_REPOSITORY:-log-observability-api}:${IMAGE_TAG:-latest}
+    container_name: log-observability-api
     restart: unless-stopped
     env_file:
       - .env

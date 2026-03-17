@@ -13,7 +13,7 @@ jobs:
 
       # Docker registry — set REGISTRY_URL in Gitea repository secrets
       REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
-      IMAGE_NAME: logstorageapi
+      IMAGE_NAME: log-observability-api
 
       # Remote deployment target — set these in Gitea repository secrets
       SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}

@@ -1,4 +1,4 @@
-"""LogStorageAPI — FastAPI application factory."""
+"""log-observability-api FastAPI application factory."""
 
 import logging
 import logging.config
@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI):
     from config import LOG_DB_HOST, LOG_DB_PORT, LOG_DB_NAME
 
     logger.info(
-        "Starting LogStorageAPI — db_host=%s db_port=%s db_name=%s",
+        "Starting log-observability-api | db_host=%s db_port=%s db_name=%s",
         LOG_DB_HOST, LOG_DB_PORT, LOG_DB_NAME,
     )
 
@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    logger.info("LogStorageAPI shutting down")
+    logger.info("log-observability-api shutting down")
 
 
 # ── Application factory ───────────────────────────────────────────────────────
@@ -84,10 +84,10 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Build and return the configured FastAPI application."""
     app = FastAPI(
-        title="Container Log API",
+        title="Log Observability API",
         description=(
-            "Query and visualise Docker container logs and runtime metrics "
-            "collected by an external agent."
+            "Query and visualize Docker container logs and runtime metrics "
+            "collected by docker-log-poller."
         ),
         version="1.0.0",
         lifespan=lifespan,

@@ -4,31 +4,35 @@ __pycache__/
 *$py.class
 
 # Virtual environments
-.venv
+.venv/
 venv/
 env/
 
-# IDE
-.idea
-.vscode
+# IDE and local tooling
+.idea/
+.vscode/
+.claude/
 
-# Secrets — never commit real credentials
-.env
-
-# Test / coverage artefacts
+# Test / coverage artifacts
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Misc
-archive
-*.egg-info/
-dist/
+# Build artifacts
+archive/
 build/
+dist/
+*.egg-info/
 
-# Claude Code internal files
-.claude/
+# Secrets and local configuration
+.env
+.env.local
 
-# Internal analysis / planning documents (not for public repo)
+# OS files
+.DS_Store
+Thumbs.db
+
+# Internal working notes
+GUIDE.md
 PLAN.md
 REVIEW.md
