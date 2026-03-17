@@ -1,0 +1,7 @@
+fastapi
+pydantic
+sqlalchemy
+psycopg2-binary
+uvicorn[standard]
+jinja2
+starlette
