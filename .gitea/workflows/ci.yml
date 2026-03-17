@@ -1,0 +1,75 @@
+name: ci-build
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-and-push:
+    runs-on: docker-runner-43
+
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      # Docker registry — set REGISTRY_URL in Gitea repository secrets
+      REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+      IMAGE_NAME: logstorageapi
+
+      # Remote deployment target — set these in Gitea repository secrets
+      SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+      SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+      REMOTE_APP_DIR: ${{ secrets.DEPLOY_APP_DIR }}
+
+
+    steps:
+      - name: Prepare tools (git, docker, ssh)
+        run: |
+          apk update
+          apk add --no-cache \
+            git \
+            docker-cli \
+            openssh-client
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build & push image
+        run: |
+          DATE_TAG=$(date +%Y%m%d-%H%M)
+          IMAGE_BASE="${REGISTRY_URL}/${IMAGE_NAME}"
+          IMAGE_LATEST="${IMAGE_BASE}:latest"
+          IMAGE_DATE="${IMAGE_BASE}:${DATE_TAG}"
+
+          echo "Build image:"
+          echo "  ${IMAGE_LATEST}"
+          echo "  ${IMAGE_DATE}"
+
+          docker build -t "${IMAGE_LATEST}" -t "${IMAGE_DATE}" .
+
+          echo "Push images..."
+          docker push "${IMAGE_LATEST}"
+          docker push "${IMAGE_DATE}"
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          # Add remote host key to known_hosts instead of disabling verification
+          ssh-keyscan -H "${SSH_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy to remote host (run deploy.sh)
+        run: |
+          echo "Create remote app dir if not exists..."
+          ssh "${SSH_USER}@${SSH_HOST}" "mkdir -p '${REMOTE_APP_DIR}'"
+
+          echo "Copy docker-compose.yml and deploy.sh..."
+          scp docker-compose.yml deploy.sh "${SSH_USER}@${SSH_HOST}:${REMOTE_APP_DIR}/"
+
+          echo "Run deploy.sh on remote..."
+          ssh "${SSH_USER}@${SSH_HOST}" "
+            cd '${REMOTE_APP_DIR}' && \
+            chmod +x deploy.sh && \
+            ./deploy.sh
+          "
