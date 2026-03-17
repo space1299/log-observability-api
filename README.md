@@ -128,7 +128,7 @@ Operational notes:
 
 ## Related Repository
 
-Companion repo: `docker-log-poller`
+Companion repo: [docker-log-poller](https://github.com/space1299/docker-log-poller)
 
 - `docker-log-poller` is deployed on Docker hosts and writes into PostgreSQL.
 - `log-observability-api` reads from that database and serves users or automation.
