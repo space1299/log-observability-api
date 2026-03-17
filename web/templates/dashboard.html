@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Container Dashboard</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="topbar__title">
+      <a class="brandlink" href="/dashboard">Containers</a>
+    </h1>
+
+    <nav class="topnav__menu">
+      <a class="navbtn" href="/dashboard" data-nav="dashboard">Dashboard</a>
+      <a class="navbtn" href="/logs" data-nav="logs">Logs</a>
+      <a class="navbtn" href="/status" data-nav="status">Status</a>
+    </nav>
+  </header>
+  <div class="layout">
+    <div class="panel">
+      <h2>서버</h2>
+      <div id="server-list" class="server-list">
+        로딩 중...
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="container-header">
+        <div>
+          <strong id="selected-server-label">서버 선택 필요</strong>
+        </div>
+        <div id="container-count" style="font-size:0.75rem; color:#6b7280;"></div>
+      </div>
+      <div id="container-grid" class="container-grid">
+      </div>
+    </div>
+  </div>
+
+  <script defer src="/static/app.js"></script>
+  <script defer src="/static/dashboard.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Container Logs Viewer</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="topbar__title">
+      <a class="brandlink" href="/dashboard">Containers</a>
+    </h1>
+
+    <nav class="topnav__menu">
+      <a class="navbtn" href="/dashboard" data-nav="dashboard">Dashboard</a>
+      <a class="navbtn" href="/logs" data-nav="logs">Logs</a>
+      <a class="navbtn" href="/status" data-nav="status">Status</a>
+    </nav>
+  </header>
+  <div class="layout">
+    <div class="panel">
+      <h2>서버 / 컨테이너</h2>
+
+      <div class="server-search">
+        <input id="server-search-input" type="text" placeholder="서버 검색..." />
+      </div>
+
+      <div id="server-list" class="server-list">로딩 중...</div>
+
+      <hr class="divider" />
+
+      <div class="container-search is-hidden">
+        <input id="container-search-input" type="text" placeholder="컨테이너 검색..." disabled />
+      </div>
+
+      <div id="container-list" class="container-list">
+        <div class="empty-text">서버를 선택하세요.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 id="current-container-title">로그</h2>
+      <div class="filters">
+        <div class="field">
+          <label for="level-select">레벨</label>
+          <select id="level-select">
+            <option value="">전체</option>
+            <option value="ERROR">ERROR</option>
+            <option value="WARN">WARN</option>
+            <option value="INFO">INFO</option>
+            <option value="DEBUG">DEBUG</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="since-input">시작 시간</label>
+          <input type="datetime-local" id="since-input" step="1" />
+        </div>
+
+        <div class="field">
+          <label for="until-input">끝 시간</label>
+          <input type="datetime-local" id="until-input" step="1" />
+        </div>
+
+        <div class="field">
+          <label for="search-input">메시지 검색</label>
+          <input type="text" id="search-input" placeholder="contains..." />
+        </div>
+
+        <div class="field">
+          <span class="field__spacer" aria-hidden="true"></span>
+          <button class="primary" id="reload-btn">조회</button>
+        </div>
+      </div>
+
+      <div class="pagination">
+        <button class="secondary" id="prev-page-btn">&lt; 이전</button>
+        <button class="secondary" id="next-page-btn">다음 &gt;</button>
+        <span id="page-info">페이지 1 / 1</span>
+        <button class="secondary" id="download-btn">CSV 다운로드</button>
+      </div>
+
+      <div class="logs-meta" id="logs-meta">컨테이너를 선택하세요.</div>
+
+      <div class="logs-container">
+        <table class="logs-table">
+          <thead>
+            <tr>
+              <th class="col-time">시간</th>
+              <th class="col-level">레벨</th>
+              <th class="col-message">메시지</th>
+            </tr>
+          </thead>
+          <tbody id="logs-tbody">
+            <tr><td colspan="3">데이터 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script defer src="/static/app.js"></script>
+  <script defer src="/static/logs.js"></script>
+</body>
+</html>
